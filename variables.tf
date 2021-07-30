@@ -22,6 +22,12 @@ variable "enable_ipv6" {
   default     = false
 }
 
+variable "networkfirewall_subnet_ipv6_prefixes" {
+  description = "Assigns IPv6 networkfirewall subnet id based on the Amazon provided /56 prefix base 10 integer (0-256). Must be of equal length to the corresponding IPv4 subnet list"
+  type        = list(string)
+  default     = []
+}
+
 variable "private_subnet_ipv6_prefixes" {
   description = "Assigns IPv6 private subnet id based on the Amazon provided /56 prefix base 10 integer (0-256). Must be of equal length to the corresponding IPv4 subnet list"
   type        = list(string)
@@ -68,6 +74,12 @@ variable "assign_ipv6_address_on_creation" {
   description = "Assign IPv6 address on subnet, must be disabled to change IPv6 CIDRs. This is the IPv6 equivalent of map_public_ip_on_launch"
   type        = bool
   default     = false
+}
+
+variable "networkfirewall_subnet_assign_ipv6_address_on_creation" {
+  description = "Assign IPv6 address on networkfirewall subnet, must be disabled to change IPv6 CIDRs. This is the IPv6 equivalent of map_public_ip_on_launch"
+  type        = bool
+  default     = null
 }
 
 variable "private_subnet_assign_ipv6_address_on_creation" {
@@ -124,6 +136,12 @@ variable "instance_tenancy" {
   default     = "default"
 }
 
+variable "networkfirewall_subnet_suffix" {
+  description = "Suffix to append to the networkfirewall subnets name"
+  type        = string
+  default     = "networkfirewall"
+}
+
 variable "public_subnet_suffix" {
   description = "Suffix to append to public subnets name"
   type        = string
@@ -164,6 +182,12 @@ variable "elasticache_subnet_suffix" {
   description = "Suffix to append to elasticache subnets name"
   type        = string
   default     = "elasticache"
+}
+
+variable "networkfirewall_subnets" {
+  description = "A list of networkfirewall subnets"
+  type        = list(string)
+  default     = []
 }
 
 variable "public_subnets" {
@@ -298,6 +322,12 @@ variable "enable_nat_gateway" {
   default     = false
 }
 
+variable "enable_networkfirewall" {
+  description = "Should be true if you want to provision a network networkfirewall in front of your public networks"
+  type        = bool
+  default     = false
+}
+
 variable "single_nat_gateway" {
   description = "Should be true if you want to provision a single shared NAT Gateway across all of your private networks"
   type        = bool
@@ -326,6 +356,18 @@ variable "external_nat_ips" {
   description = "List of EIPs to be used for `nat_public_ips` output (used in combination with reuse_nat_ips and external_nat_ip_ids)"
   type        = list(string)
   default     = []
+}
+
+variable "networkfirewall_policy_arn" {
+  description = "The network networkfirewall policy arn to associate with the network firewall. Needed if you are setting enable_networkfirewall to true"
+  type        = string
+  default     = null
+}
+
+variable "networkfirewall_suffix" {
+  description = "The suffix that should be appended to the networkfirewall name"
+  type        = string
+  default     = "networkfirewall"
 }
 
 variable "map_public_ip_on_launch" {
@@ -430,6 +472,12 @@ variable "public_subnet_tags" {
   default     = {}
 }
 
+variable "networkfirewall_subnet_tags" {
+  description = "Additional tags for the networkfirewall subnets"
+  type        = map(string)
+  default     = {}
+}
+
 variable "private_subnet_tags" {
   description = "Additional tags for the private subnets"
   type        = map(string)
@@ -438,6 +486,12 @@ variable "private_subnet_tags" {
 
 variable "outpost_subnet_tags" {
   description = "Additional tags for the outpost subnets"
+  type        = map(string)
+  default     = {}
+}
+
+variable "networkfirewall_route_table_tags" {
+  description = "Additional tags for the networkfirewall route tables"
   type        = map(string)
   default     = {}
 }
@@ -516,6 +570,18 @@ variable "elasticache_subnet_tags" {
 
 variable "intra_subnet_tags" {
   description = "Additional tags for the intra subnets"
+  type        = map(string)
+  default     = {}
+}
+
+variable "networkfirewall_acl_tags" {
+  description = "Additional tags for the networkfirewall subnets network ACL"
+  type        = map(string)
+  default     = {}
+}
+
+variable "networkfirewall_log_tags" {
+  description = "Additional tags for the Network Firewall Logs"
   type        = map(string)
   default     = {}
 }
@@ -694,6 +760,12 @@ variable "default_network_acl_tags" {
   default     = {}
 }
 
+variable "networkfirewall_dedicated_network_acl" {
+  description = "Whether to use dedicated network ACL (not default) and custom rules for networkfirewall subnets"
+  type        = bool
+  default     = false
+}
+
 variable "public_dedicated_network_acl" {
   description = "Whether to use dedicated network ACL (not default) and custom rules for public subnets"
   type        = bool
@@ -780,6 +852,38 @@ variable "default_network_acl_egress" {
       to_port         = 0
       protocol        = "-1"
       ipv6_cidr_block = "::/0"
+    },
+  ]
+}
+
+variable "networkfirewall_inbound_acl_rules" {
+  description = "networkfirewall subnets inbound network ACLs"
+  type        = list(map(string))
+
+  default = [
+    {
+      rule_number = 100
+      rule_action = "allow"
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_block  = "0.0.0.0/0"
+    },
+  ]
+}
+
+variable "networkfirewall_outbound_acl_rules" {
+  description = "networkfirewall subnets outbound network ACLs"
+  type        = list(map(string))
+
+  default = [
+    {
+      rule_number = 100
+      rule_action = "allow"
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_block  = "0.0.0.0/0"
     },
   ]
 }
@@ -1030,6 +1134,36 @@ variable "enable_flow_log" {
   description = "Whether or not to enable VPC Flow Logs"
   type        = bool
   default     = false
+}
+
+variable "enable_networkfirewall_logs" {
+  description = "Whether or not to enable NetworkFirewall Logs"
+  type        = bool
+  default     = false
+}
+
+variable "networkfirewall_log_cloudwatch_log_group_name_prefix" {
+  description = "Specifies the name prefix of Network Firewall Log Group for Network Firewall logs."
+  type        = string
+  default     = "/aws/network-firewall-log/"
+}
+
+variable "networkfirewall_log_cloudwatch_log_group_retention_in_days" {
+  description = "Specifies the number of days you want to retain log events in the specified log group for Network Firewall logs."
+  type        = number
+  default     = null
+}
+
+variable "networkfirewall_log_cloudwatch_log_group_kms_key_id" {
+  description = "The ARN of the KMS Key to use when encrypting log data for Network Firewall logs."
+  type        = string
+  default     = null
+}
+
+variable "networkfirewall_log_types" {
+  description = "The Types of Network Firewall Logs to send"
+  type        = list(string)
+  default     = ["FLOW", "ALERT"]
 }
 
 variable "default_security_group_egress" {
